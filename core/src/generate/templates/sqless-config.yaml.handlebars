@@ -1,0 +1,21 @@
+version: 0.0.1
+dbConnection:
+    type: postgres
+    database: postgres
+    host: localhost
+    port: 5432
+    user: postgres
+    password: postgres
+migrations: 
+  - id: 001_initial
+    applyPath: migrations/001_initial.sql
+    rollbackPath: migrations/001_initial_rollback.sql
+api: ../{{ apiPath }}
+delegatePaths:
+{{#each pathDelegates}}
+  {{path}}:
+{{#each operations}}
+    {{method}}:
+      path: {{delegate}}
+{{/each}}
+{{/each}}

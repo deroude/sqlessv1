@@ -1,0 +1,78 @@
+{
+  "name": "sqless-core",
+  "version": "1.0.0",
+  "description": "SQLess development platform",
+  "main": "dist/index.js",
+  "scripts": {
+    "prebuild": "rimraf dist/*",
+    "lint": "tslint -c tslint.json -p tsconfig.json --fix",
+    "tsc": "tsc",
+    "build": "handlebars src/generate/templates -f src/generate/templates/precompiled.js && npm run lint && npm run tsc",
+    "postbuild": "cpy **/* !**/*.ts !**/*.handlebars ../dist/ --cwd=src/ --no-overwrite --parents",
+    "build:watch": "tsc -w",
+    "dev:start": "nodemon --watch dist --exec node .",
+    "dev": "concurrently \"npm run build:watch\" \"npm run dev:start\"",
+    "start": "node .",
+    "test": "jest"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/deroude/sqlessv1.git"
+  },
+  "keywords": [
+    "low-code",
+    "sql",
+    "openapi"
+  ],
+  "bin": {
+    "sqless": "bin/start"
+  },
+  "author": "Valentin Raduti",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/deroude/sqlessv1/issues"
+  },
+  "homepage": "https://github.com/deroude/sqlessv1#readme",
+  "dependencies": {
+    "body-parser": "^1.19.0",
+    "docxtemplater": "3.19.6",
+    "express": "^4.17.1",
+    "express-openapi-validator": "^4.0.2",
+    "express-session": "^1.17.1",
+    "handlebars": "^4.7.6",
+    "js-yaml": "3.14.0",
+    "lodash": "^4.17.20",
+    "nodemailer": "^6.4.11",
+    "openid-client": "^4.1.1",
+    "passport": "^0.4.1",
+    "passport-jwt": "^4.0.0",
+    "jwks-rsa": "^1.10.1",
+    "cors": "^2.8.5",
+    "pg": "^8.3.0",
+    "swagger-ui-express": "^4.1.4",
+    "yargs": "^15.4.1"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.8",
+    "@types/express": "^4.17.7",
+    "@types/express-session": "^1.17.2",
+    "@types/handlebars": "^4.1.0",
+    "@types/js-yaml": "^3.12.5",
+    "@types/lodash": "^4.14.159",
+    "@types/multer": "^1.4.4",
+    "@types/node": "^14.0.27",
+    "@types/nodemailer": "4.6.0",
+    "@types/nodemailer-smtp-transport": "2.7.4",
+    "@types/passport": "^1.0.4",
+    "@types/passport-jwt": "^3.0.1",
+    "@types/pg": "^7.14.4",
+    "@types/swagger-ui-express": "^4.1.2",
+    "@types/yargs": "11.0.0",
+    "concurrently": "^5.2.0",
+    "cpy-cli": "^3.1.1",
+    "nodemon": "^2.0.4",
+    "rimraf": "^3.0.2",
+    "tslint": "^6.1.2",
+    "typescript": "^4.0.5"
+  }
+}
