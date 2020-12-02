@@ -1,6 +1,7 @@
 import { Persistence } from "../../service/Persistence";
 import { Delegate } from "../Delegate";
 import { QueryConfig } from "./QueryConfig";
+import _ from 'lodash';
 
 export class QueryDelegate implements Delegate {
 
@@ -9,9 +10,9 @@ export class QueryDelegate implements Delegate {
     async process(context: any, params: any): Promise<void> {
         const persistence: Persistence = context.persistence;
         try {
-            const args: any[] = (this.config.params || []).map(p => params[p]);
+            const args: any[] = (this.config.params || []).map(p => _.get(params, p));
 
-            const re = persistence.executeQuery(this.config.statement, args);
+            const re = await persistence.executeQuery(this.config.statement, args);
             if (this.config.assign) {
                 params[this.config.assign] = re;
             }

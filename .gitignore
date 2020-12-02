@@ -106,3 +106,5 @@ dist
 .sqless
 
 precompiled.js
+
+.vscode
