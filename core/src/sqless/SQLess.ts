@@ -6,7 +6,7 @@ import { OpenAPIV3 } from 'express-openapi-validator/dist/framework/types';
 import passport from 'passport';
 import cors from 'cors';
 import { SQLessConfig } from './SQLessConfig';
-import { MethodDelegate } from '../delegate/Delegate';
+import { MethodDelegate } from '../delegate/MethodDelegate';
 
 
 export class SQLess {
@@ -31,7 +31,7 @@ export class SQLess {
 
     async addAPI(tenant: string, config: SQLessConfig, api: OpenAPIV3.Document, methodExecutors: { [path: string]: { [method: string]: MethodDelegate } }): Promise<void> {
         console.log(`Adding API for ${tenant || 'local environment'} ... `);
-        let jwtCheck;
+        const jwtCheck='';
         let basePath = '';
         if (tenant) {
             basePath = `/tenants/${tenant}`;
@@ -63,25 +63,36 @@ export class SQLess {
             const opPath = `${basePath}${formattedPath}`;
             for (const method of Object.keys(item)) {
                 this.expressRequest(method, opPath, jwtCheck, async (aReq, aRes) => {
-                    try {
-                        const params: any = { ...aReq };
-                        if (methodExecutors[apiPath] && methodExecutors[apiPath][method]) {
-                            const methodDelegate = methodExecutors[apiPath][method];
-                            for (let delegate of methodDelegate.pipe) {
+                    if (methodExecutors[apiPath] && methodExecutors[apiPath][method]) {
+                        const methodDelegate = methodExecutors[apiPath][method];
+                        try {
+                            const params: any = { ...aReq };
+
+                            if (methodDelegate.transactional) {
+                                this.context.persistence.beginTransaction();
+                            }
+                            for (const delegate of methodDelegate.pipe) {
                                 await delegate.process(this.context, params);
+                            }
+                            if (methodDelegate.transactional) {
+                                this.context.persistence.commitTransaction();
                             }
                             if (methodDelegate.returnVar) {
                                 aRes.status(200).send(params[methodDelegate.returnVar]);
                             } else {
                                 aRes.status(200).send();
                             }
-                        } else {
-                            aRes.status(501).send('Method not yet implemented');
+                        } catch (err) {
+                            if (methodDelegate.transactional) {
+                                this.context.persistence.rollbackTransaction();
+                            }
+                            console.error(err);
+                            aRes.status(500).send(err);
                         }
-                    } catch (err) {
-                        console.error(err);
-                        aRes.status(500).send(err);
+                    } else {
+                        aRes.status(501).send('Method not yet implemented');
                     }
+
                 });
             }
         }

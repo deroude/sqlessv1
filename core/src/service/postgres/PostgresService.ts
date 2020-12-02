@@ -1,5 +1,6 @@
 import { PostgresConfig } from "./PostgresConfig";
 import { Pool } from 'pg';
+import { Persistence } from "../Persistence";
 
 // TODO use template
 const INIT = `
@@ -25,10 +26,37 @@ CREATE TABLE IF NOT EXISTS sqless.migrations (
     status varchar NOT NULL
 );
 `;
-export class PostgresService{
+export class PostgresService implements Persistence {
 
     db: Pool;
-    constructor(private config: PostgresConfig, private tenant: string = 'local'){}
+    constructor(private config: PostgresConfig, private tenant: string = 'local') { }
+
+    async beginTransaction(): Promise<void> {
+        try {
+            await this.executeQuery("BEGIN");
+            return Promise.resolve();
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }
+
+    async commitTransaction(): Promise<void> {
+        try {
+            await this.executeQuery("COMMIT");
+            return Promise.resolve();
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }
+
+    async rollbackTransaction(): Promise<void> {
+        try {
+            await this.executeQuery("ROLLBACK");
+            return Promise.resolve();
+        } catch (err) {
+            return Promise.reject(err);
+        }
+    }
 
     ready = false;
 
@@ -45,10 +73,10 @@ export class PostgresService{
         }
     }
 
-    async executeQuery(query: string, args: any[]): Promise<any> {
+    async executeQuery(query: string, args?: any[]): Promise<any> {
         try {
             await this.connect();
-            const q = await this.db.query(query, args);
+            const q = await this.db.query(query, args || []);
             return Promise.resolve(q.rows);
         } catch (err) {
             return Promise.reject(err);

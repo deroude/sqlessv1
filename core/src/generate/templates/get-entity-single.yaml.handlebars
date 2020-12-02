@@ -1,4 +1,4 @@
-operations:
+pipe:
   - id: GetSingle{{ name }}
     type: sql
     template: >-
@@ -9,4 +9,5 @@ operations:
     singleRow: true
     assign: 
       var: Single{{ name }}
-return: Single{{ name }}
+returnVar: Single{{ name }}
+transactional: false

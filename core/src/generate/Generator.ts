@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import * as yaml from 'js-yaml';
-import { GeneratorConfig } from "../config/GeneratorConfig";
+import { GeneratorConfig } from "./GeneratorConfig";
 import { OpenAPIV3 } from 'express-openapi-validator/dist/framework/types';
 import Handlebars from 'handlebars';
 import util from 'util';

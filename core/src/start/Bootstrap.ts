@@ -6,9 +6,10 @@ import path from 'path';
 import * as yaml from 'js-yaml';
 import { PostgresService } from '../service/postgres/PostgresService';
 import { OpenAPIV3 } from 'express-openapi-validator/dist/framework/types';
-import { loadDelegate, MethodDelegateConfig } from '../delegate/DelegateConfig';
+import { loadDelegate } from '../delegate/DelegateConfig';
+import { MethodDelegateConfig } from '../delegate/MethodDelegateConfig';
 import { NotImplementedDelegate } from '../delegate/not-implemented/NotImplementedDelegate';
-import { MethodDelegate } from '../delegate/Delegate';
+import { MethodDelegate } from '../delegate/MethodDelegate';
 
 
 export class Bootstrap {
@@ -19,7 +20,7 @@ export class Bootstrap {
 
         let configCwd: string = '';
 
-        let context: any = {};
+        const context: any = {};
 
         console.log(`Loading config from ${this.argv.configPath}`);
         if (this.argv.configPath && fs.existsSync(this.argv.configPath)) {
@@ -105,8 +106,11 @@ export class Bootstrap {
                             path.resolve(configCwd, delegateConfig.path), 'utf-8')
                     ) as MethodDelegateConfig;
                     if (methodExecutors[dPath] === undefined) methodExecutors[dPath] = {};
-                    // TODO add mongo delegate
-                    methodExecutors[dPath][dMethod] = { pipe: methodConfig.pipe.map(cfg => loadDelegate(cfg)), returnVar: methodConfig.returnVar };
+                    methodExecutors[dPath][dMethod] = {
+                        pipe: methodConfig.pipe.map(cfg => loadDelegate(cfg)),
+                        returnVar: methodConfig.returnVar,
+                        transactional: methodConfig.transactional
+                    };
                 });
             });
 
@@ -117,7 +121,7 @@ export class Bootstrap {
                     if (methodExecutors[apiPath][method] === undefined) {
                         console.log(`- [default] ${method.toUpperCase()} ${apiPath}`)
                         try {
-                            methodExecutors[apiPath][method] = { pipe: [new NotImplementedDelegate()] };
+                            methodExecutors[apiPath][method] = { pipe: [new NotImplementedDelegate()], transactional: false };
                         } catch (err) {
                             console.error(err);
                         }

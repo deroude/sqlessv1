@@ -6,5 +6,8 @@ export interface FieldMapping {
 }
 
 export interface ObjectMappingConfig extends DelegateConfig {
+    from: string;
+    to: string;
+    isArray: boolean;
     fields: FieldMapping[];
 }

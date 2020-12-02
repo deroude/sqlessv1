@@ -1,4 +1,4 @@
-operations:
+pipe:
   - id: GetList{{ name }}
     type: sql
     template: >-
@@ -7,4 +7,5 @@ operations:
     singleRow: false
     assign: 
       var: List{{ name }}
-return: List{{ name }}
+returnVar: List{{ name }}
+transactional: false

@@ -1,4 +1,4 @@
-operations:
+pipe:
   - id: Update{{ name }}
     type: sql
     template: >-
@@ -13,4 +13,5 @@ operations:
     singleRow: true      
     assign: 
       var: Updated{{ name }}
-return: Updated{{ name }}
+returnVar: Updated{{ name }}
+transactional: true

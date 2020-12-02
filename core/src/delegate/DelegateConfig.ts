@@ -13,11 +13,6 @@ export interface DelegateConfig {
     type: string;
 }
 
-export interface MethodDelegateConfig {
-    pipe: DelegateConfig[];
-    returnVar: string;
-}
-
 export const loadDelegate = (config: DelegateConfig): Delegate => {
     switch (config.type) {
         case 'query':

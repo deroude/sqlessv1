@@ -1,5 +1,6 @@
 import yargs from 'yargs';
 import { Generator } from './generate/Generator';
+import { Bootstrap } from './start/Bootstrap';
 
 const argv = yargs
     .command('start', 'Starts a SQLess environment', y =>
@@ -20,13 +21,12 @@ const argv = yargs
             .default('p', '9000')
             .example('$0 --api /path/to/my/openapi.yaml --config /path/to/my/config.yaml', 'Starts the SQLess backend for the provided API and configuration')
             .example('$0 -a /path/to/my/openapi.yaml', 'Starts the SQLess backend for the provided API, using a local file names sqless-config.yaml, or the default configuration'),
-        args => console.log(args)
-        // new Bootstrap({
-        //     apiPath: args.apiPath,
-        //     configPath: args.configPath,
-        //     hostname: args.hostname,
-        //     port: args.port
-        // }).start().catch(reason => { console.error(reason); process.exit(1); })
+        args => new Bootstrap({
+            apiPath: args.apiPath,
+            configPath: args.configPath,
+            hostname: args.hostname,
+            port: args.port
+        }).start().catch(reason => { console.error(reason); process.exit(1); })
     )
     .command('init', 'Initializes the SQLess environment in the current folder', y =>
         y.alias('a', 'apiPath')

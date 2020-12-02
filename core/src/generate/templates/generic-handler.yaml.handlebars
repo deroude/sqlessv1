@@ -1,4 +1,4 @@
-operations:
+pipe:
   - id: GenericOperation
     type: sql
     template: >-
@@ -6,4 +6,5 @@ operations:
     singleRow: true
     assign: 
       var: Result
-return: Result
+returnVar: Result
+transactional: true
