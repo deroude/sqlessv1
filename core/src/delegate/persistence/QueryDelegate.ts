@@ -9,18 +9,13 @@ export class QueryDelegate implements Delegate {
     async process(context: any, params: any): Promise<void> {
         const persistence: Persistence = context.persistence;
         try {
-            await persistence.executeQuery('BEGIN');
-            const re = persistence.executeQuery(this.config.statement, params);
+            const args: any[] = (this.config.params || []).map(p => params[p]);
+
+            const re = persistence.executeQuery(this.config.statement, args);
             if (this.config.assign) {
                 params[this.config.assign] = re;
             }
-            await persistence.executeQuery('COMMIT');
         } catch (err) {
-            try {
-                persistence.executeQuery('ROLLBACK');
-            } catch (rbErr) {
-                console.error(rbErr);
-            }
             return Promise.reject(err);
         }
         return Promise.resolve();

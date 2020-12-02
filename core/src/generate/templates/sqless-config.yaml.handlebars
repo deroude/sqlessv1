@@ -10,8 +10,8 @@ migrations:
   - id: 001_initial
     applyPath: migrations/001_initial.sql
     rollbackPath: migrations/001_initial_rollback.sql
-api: ../{{ apiPath }}
-delegatePaths:
+apiPath: ../{{ apiPath }}
+methodPaths:
 {{#each pathDelegates}}
   {{path}}:
 {{#each operations}}

@@ -1,7 +1,6 @@
 pipe:
-  - id: Add{{ name }}
-    type: sql
-    template: >-
+  - type: query
+    statement: >-
       INSERT INTO "{{ nameSnake }}" ( 
         {{#each properties}}{{#unless isId}}"{{ nameSnake }}"{{~#unless @last}},{{/unless}}{{/unless}}{{/each}} 
       )
@@ -10,8 +9,7 @@ pipe:
       {{~#each properties}}
       {{#unless isId}}- body.{{ name }}{{#if fk}}.id{{/if}}{{/unless}}
       {{/each}}
-    singleRow: true
-    assign: 
-      var: New{{ name }}
+    resultType: row
+    assign: New{{ name }}
 returnVar: New{{ name }}
 transactional: true

@@ -1,10 +1,8 @@
 pipe:
-  - id: GenericOperation
-    type: sql
-    template: >-
+  - type: query
+    statement: >-
       SELECT 1;
-    singleRow: true
-    assign: 
-      var: Result
+    resultType: scalar
+    assign: Result
 returnVar: Result
-transactional: true
+transactional: false

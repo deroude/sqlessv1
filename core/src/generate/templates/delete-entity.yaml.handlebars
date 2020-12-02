@@ -1,8 +1,8 @@
 pipe:
-  - id: Delete{{ name }}
-    type: sql
-    template: >-
+  - type: query
+    statement: >-
       DELETE FROM "{{nameSnake}}" where "id" = $1;
     params:
       - params.id
+    resultType: none
 transactional: true

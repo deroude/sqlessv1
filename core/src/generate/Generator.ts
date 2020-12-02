@@ -11,7 +11,7 @@ global.Handlebars = Handlebars;
 
 Handlebars.registerHelper("inc", (value) => Number(value) + 1);
 
-import '../business/templates/precompiled';
+import './templates/precompiled';
 
 type PGType = 'serial' | 'varchar' | 'decimal' | 'int' | 'bigint' | 'boolean' | 'timestamptz';
 

@@ -3,6 +3,6 @@ import { DelegateConfig } from "../DelegateConfig";
 export interface QueryConfig extends DelegateConfig {
     statement: string;
     params?: any[];
-    type: 'row' | 'scalar' | 'set';
+    resultType: 'row' | 'scalar' | 'set' | 'none';
     assign?: string
 }

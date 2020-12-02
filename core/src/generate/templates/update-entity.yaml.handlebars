@@ -1,7 +1,6 @@
 pipe:
-  - id: Update{{ name }}
-    type: sql
-    template: >-
+  - type: query
+    statement: >-
       UPDATE "{{ nameSnake }}" SET 
       {{#each properties}}{{#unless isId}}"{{ nameSnake }}" = ${{inc @index}} {{~#unless @last}},{{/unless}}{{/unless}}{{/each}}
       WHERE id = $1 RETURNING *
@@ -10,8 +9,7 @@ pipe:
       {{~#each properties}}
       {{#unless isId}}- body.{{ name }}{{#if fk}}.id{{/if}}{{/unless}}
       {{/each}}
-    singleRow: true      
-    assign: 
-      var: Updated{{ name }}
+    resultType: row      
+    assign: Updated{{ name }}
 returnVar: Updated{{ name }}
 transactional: true
