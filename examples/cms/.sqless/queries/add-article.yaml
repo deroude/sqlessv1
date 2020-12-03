@@ -1,0 +1,18 @@
+pipe:
+  - type: query
+    statement: >-
+      INSERT INTO "article" ( 
+        "author","category","title","text","tags","publish_date" 
+      )
+      VALUES ($1,$2,$3,$4,$5,$6) RETURNING *;
+    params:      
+      - body.author
+      - body.category
+      - body.title
+      - body.text
+      - body.tags
+      - body.publishDate
+    resultType: row
+    assign: NewArticle
+returnVar: NewArticle
+transactional: true

@@ -1,0 +1,5 @@
+pipe:
+  - type: custom
+    path: custom/list-user
+returnVar: ListUser
+transactional: false

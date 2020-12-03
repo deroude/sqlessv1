@@ -1,0 +1,13 @@
+pipe:
+  - type: query
+    statement: >-
+      INSERT INTO "category" ( 
+        "name" 
+      )
+      VALUES ($1) RETURNING *;
+    params:      
+      - body.name
+    resultType: row
+    assign: NewCategory
+returnVar: NewCategory
+transactional: true

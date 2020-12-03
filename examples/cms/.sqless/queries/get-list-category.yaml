@@ -1,0 +1,9 @@
+pipe:
+  - type: query
+    statement: >-
+      SELECT "id","name" 
+      FROM "category" ;    
+    resultType: set
+    assign: ListCategory
+returnVar: ListCategory
+transactional: false

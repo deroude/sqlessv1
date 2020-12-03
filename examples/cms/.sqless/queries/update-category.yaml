@@ -1,0 +1,13 @@
+pipe:
+  - type: query
+    statement: >-
+      UPDATE "category" SET 
+      "name" = $2
+      WHERE id = $1 RETURNING *
+    params:
+      - params.id      
+      - body.name
+    resultType: row      
+    assign: UpdatedCategory
+returnVar: UpdatedCategory
+transactional: true

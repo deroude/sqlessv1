@@ -1,0 +1,42 @@
+version: 0.0.1
+dbConnection:
+    type: postgres
+    database: postgres
+    host: localhost
+    port: 5432
+    user: postgres
+    password: postgres
+migrations: 
+  - id: 001_initial
+    applyPath: migrations/001_initial.sql
+    rollbackPath: migrations/001_initial_rollback.sql
+apiPath: ../cms-crud-api.yaml
+methodPaths:
+  /category:
+    get:
+      path: queries/get-list-category.yaml
+    post:
+      path: queries/add-category.yaml
+  /category/{id}:
+    put:
+      path: queries/update-category.yaml
+    delete:
+      path: queries/delete-category.yaml
+  /article:
+    get:
+      path: queries/get-list-article.yaml
+    post:
+      path: queries/add-article.yaml
+  /article/{id}:
+    put:
+      path: queries/update-article.yaml
+    delete:
+      path: queries/delete-article.yaml
+  /user:
+    get:
+      path: queries/get-list-user.yaml
+  /user/{id}:
+    put:
+      path: queries/update-user.yaml
+    delete:
+      path: queries/delete-user.yaml

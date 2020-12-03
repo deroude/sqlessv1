@@ -1,0 +1,8 @@
+pipe:
+  - type: query
+    statement: >-
+      DELETE FROM "user" where "id" = $1;
+    params:
+      - params.id
+    resultType: none
+transactional: true

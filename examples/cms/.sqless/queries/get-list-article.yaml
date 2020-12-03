@@ -1,0 +1,9 @@
+pipe:
+  - type: query
+    statement: >-
+      SELECT "id","author","category","title","text","tags","publish_date" 
+      FROM "article" ;    
+    resultType: set
+    assign: ListArticle
+returnVar: ListArticle
+transactional: false
