@@ -3,11 +3,19 @@ import bodyParser from "body-parser";
 import swaggerUi from 'swagger-ui-express';
 import * as  OpenApiValidator from 'express-openapi-validator';
 import { OpenAPIV3 } from 'express-openapi-validator/dist/framework/types';
-import passport from 'passport';
 import cors from 'cors';
 import { SQLessConfig } from './SQLessConfig';
 import { MethodDelegate } from '../delegate/MethodDelegate';
+import _ from 'lodash';
+import { WellKnown, JWK, discover, getJWKs } from '../service/oidc-discovery/OIDCDiscovery';
+import passport from 'passport';
 
+// tslint:disable-next-line:no-var-requires
+const jwksClient = require('jwks-rsa');
+// tslint:disable-next-line:no-var-requires
+const JwtStrategy = require('passport-jwt').Strategy;
+// tslint:disable-next-line:no-var-requires
+const ExtractJwt = require('passport-jwt').ExtractJwt;
 
 export class SQLess {
 
@@ -31,7 +39,6 @@ export class SQLess {
 
     async addAPI(tenant: string, config: SQLessConfig, api: OpenAPIV3.Document, methodExecutors: { [path: string]: { [method: string]: MethodDelegate } }): Promise<void> {
         console.log(`Adding API for ${tenant || 'local environment'} ... `);
-        const jwtCheck='';
         let basePath = '';
         if (tenant) {
             basePath = `/tenants/${tenant}`;
@@ -45,10 +52,37 @@ export class SQLess {
             apiSpec: api
         }));
 
-        if (config.security) {
 
-            this.app.use(passport.initialize());
+        if (api.components.securitySchemes) {
+            const scheme: OpenAPIV3.SecuritySchemeObject = Object.values(api.components.securitySchemes)[0] as OpenAPIV3.SecuritySchemeObject;
+            if (scheme.type === 'openIdConnect') {
+                const oidcConfig: WellKnown = await discover(scheme.openIdConnectUrl);
+                const verify = (jwtPayload: any, done: any) => {
 
+                    if (jwtPayload && jwtPayload.sub) {
+                        return done(null, jwtPayload);
+                    }
+
+                    return done(null, false);
+                };
+                passport.use(
+                    new JwtStrategy({
+                        // Dynamically provide a signing key based on the kid in the header and the signing keys provided by the JWKS endpoint.
+                        secretOrKeyProvider: jwksClient.passportJwtSecret({
+                            cache: true,
+                            rateLimit: true,
+                            jwksRequestsPerMinute: 5,
+                            jwksUri: oidcConfig.jwks_uri
+                        }),
+                        jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+
+                        issuer: oidcConfig.issuer,
+                        algorithms: ['RS256']
+                    }, verify)
+                );
+
+                this.app.use(passport.initialize());
+            }
         }
 
         this.app.use(async (err: any, req: any, res: any, next: any) => {
@@ -61,8 +95,11 @@ export class SQLess {
         for (const [apiPath, item] of Object.entries(api.paths)) {
             const formattedPath = apiPath.replace(/\{(.+)\}/g, ':$1');
             const opPath = `${basePath}${formattedPath}`;
-            for (const method of Object.keys(item)) {
-                this.expressRequest(method, opPath, jwtCheck, async (aReq, aRes) => {
+            for (const method of ['get', 'post', 'put', 'delete', 'patch', 'options'].filter(m => _.has(item, m))) {
+
+                const apiConfig: OpenAPIV3.OperationObject = _.get(item, method);
+
+                this.expressRequest(method, opPath, apiConfig.security ? passport.authenticate('jwt', { session: false }) : null, async (aReq, aRes) => {
                     if (methodExecutors[apiPath] && methodExecutors[apiPath][method]) {
                         const methodDelegate = methodExecutors[apiPath][method];
                         try {

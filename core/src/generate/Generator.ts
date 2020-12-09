@@ -167,7 +167,6 @@ export class Generator {
             console.warn('Circular FK detected');
         }
 
-        await this.writeFile('.sqless/sqless-config.yaml', Handlebars.templates['sqless-config.yaml'], { apiPath: this.config.apiPath.replace(/^\.[\/\\]/, '') });
         await this.writeFile('.sqless/docker-compose.yaml', Handlebars.templates['docker-compose.yaml'], {});
         await this.writeFile('.sqless/postgres-init.sql', Handlebars.templates['postgres-init.sql'], {});
         await this.writeFile('.sqless/migrations/001_initial.sql', Handlebars.templates['001_initial.sql'], { entities });

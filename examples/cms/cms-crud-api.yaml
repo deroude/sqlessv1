@@ -321,13 +321,8 @@ components:
     
   securitySchemes:
     cms_auth:
-      type: oauth2
-      flows:
-        implicit:
-          authorizationUrl: http://localhost:8000/auth
-          scopes:
-            'write:article': modify articles in your account
-            'write:user': modify users
+      type: openIdConnect
+      openIdConnectUrl: https://accounts.google.com/.well-known/openid-configuration
     api_key:
       type: apiKey
       name: api_key

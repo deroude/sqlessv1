@@ -9,12 +9,7 @@ export interface SQLessConfig {
     mail?: MailConfig;
     apiPath?: string;
     methodPaths?: { [path: string]: { [method: string]: { path: string } } }
-    corsOrigin?: string,
-    security?: {
-        clientId: string,
-        clientSecret: string,
-        issuerUrl: string
-    }
+    corsOrigin?: string
 }
 export const DEFAULT_CONFIG: SQLessConfig = {
     version: '0.0.1',
