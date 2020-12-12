@@ -7,5 +7,10 @@ pipe:
       - params.id
     resultType: row
     assign: Single{{ name }}
+  - type: mapping
+    from: Single{{ name }}
+    isArray: false
+    builtIn: snakeToCamel
+    to: Single{{ name }}
 returnVar: Single{{ name }}
 transactional: false

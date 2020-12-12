@@ -1,4 +1,9 @@
 pipe:
+  - type: mapping
+    from: body
+    isArray: false
+    builtIn: camelToSnake
+    to: body
   - type: query
     statement: >-
       UPDATE "{{ nameSnake }}" SET 
@@ -11,5 +16,10 @@ pipe:
       {{/each}}
     resultType: row      
     assign: Updated{{ name }}
+  - type: mapping
+    isArray: false
+    from: Updated{{ name }}
+    builtIn: snakeToCamel
+    to: Updated{{ name }}
 returnVar: Updated{{ name }}
 transactional: true

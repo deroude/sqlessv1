@@ -150,7 +150,7 @@ export class Generator {
                 const e = entities[i];
                 for (const prop of e.properties) {
                     if (prop.fk) {
-                        const si = entities.findIndex(o => o.name === prop.fk);
+                        const si = entities.findIndex(o => o.nameSnake === prop.fk);
                         if (si > i) {
                             sw = true;
                             const oe: Entity = entities[si];
@@ -211,12 +211,18 @@ export class Generator {
                             if (!isIdOp) {
                                 delegate = `queries/add-${entityName}.yaml`;
                                 await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['add-entity.yaml'], entity);
+                            } else {
+                                delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
+                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
                             }
                             break;
                         case 'delete':
                             if (isIdOp) {
                                 delegate = `queries/delete-${entityName}.yaml`;
                                 await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['delete-entity.yaml'], entity);
+                            } else {
+                                delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
+                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
                             }
                             break;
                         case 'put':
@@ -224,6 +230,9 @@ export class Generator {
                             if (isIdOp) {
                                 delegate = `queries/update-${entityName}.yaml`;
                                 await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['update-entity.yaml'], entity);
+                            } else {
+                                delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
+                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
                             }
                             break;
                     }
@@ -256,8 +265,6 @@ export class Generator {
                     format: 'pem'
                 }
             });
-            const scopes = (api.components.securitySchemes[realmName] as OpenAPIV3.OAuth2SecurityScheme).flows.implicit.scopes;
-            const roles = Object.keys(scopes).map(k => ({ name: k, description: scopes[k] }));
             const server = api.servers && api.servers[0] ? api.servers[0].url : '';
             await this.writeFile('.sqless/realm-config.json', Handlebars.templates['realm-config.json'], {
                 realmName,
@@ -265,7 +272,6 @@ export class Generator {
                 // privateKey,
                 publicKey: publicKey.replace(KEY_PATTERN, ''),
                 privateKey: privateKey.replace(KEY_PATTERN, ''),
-                roles,
                 server
             });
 

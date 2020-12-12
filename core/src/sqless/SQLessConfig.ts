@@ -8,8 +8,9 @@ export interface SQLessConfig {
     migrations?: { id: string; applyPath: string; rollbackPath: string }[];
     mail?: MailConfig;
     apiPath?: string;
-    methodPaths?: { [path: string]: { [method: string]: { path: string } } }
-    corsOrigin?: string
+    methodPaths?: { [path: string]: { [method: string]: { path: string } } };
+    corsOrigin?: string;
+    permissionClaim?: string;
 }
 export const DEFAULT_CONFIG: SQLessConfig = {
     version: '0.0.1',

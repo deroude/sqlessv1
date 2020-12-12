@@ -55,17 +55,18 @@ export class SQLess {
 
         if (api.components.securitySchemes) {
             const scheme: OpenAPIV3.SecuritySchemeObject = Object.values(api.components.securitySchemes)[0] as OpenAPIV3.SecuritySchemeObject;
+            const schemeName: string = Object.keys(api.components.securitySchemes)[0];
             if (scheme.type === 'openIdConnect') {
                 const oidcConfig: WellKnown = await discover(scheme.openIdConnectUrl);
-                const verify = (jwtPayload: any, done: any) => {
-
-                    if (jwtPayload && jwtPayload.sub) {
+                const verify = (req: any, jwtPayload: any, done: any) => {
+                    const scopesRequired: string[] = _.get(api.paths, `${req.path}.${req.method.toLowerCase()}.security[0].${schemeName}`) as string[];
+                    if (jwtPayload && jwtPayload.sub && (!scopesRequired || scopesRequired.length === 0 || scopesRequired.some(s => (jwtPayload[config.permissionClaim]||[]).includes(s)))) {
                         return done(null, jwtPayload);
                     }
 
                     return done(null, false);
                 };
-                passport.use(
+                passport.use('jwt',
                     new JwtStrategy({
                         // Dynamically provide a signing key based on the kid in the header and the signing keys provided by the JWKS endpoint.
                         secretOrKeyProvider: jwksClient.passportJwtSecret({
@@ -75,7 +76,7 @@ export class SQLess {
                             jwksUri: oidcConfig.jwks_uri
                         }),
                         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-
+                        passReqToCallback: true,
                         issuer: oidcConfig.issuer,
                         algorithms: ['RS256']
                     }, verify)

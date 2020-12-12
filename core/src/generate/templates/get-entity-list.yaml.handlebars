@@ -5,5 +5,10 @@ pipe:
       FROM "{{ nameSnake }}" ;    
     resultType: set
     assign: List{{ name }}
+  - type: mapping
+    from: List{{ name }}
+    isArray: true
+    builtIn: snakeToCamel
+    to: List{{ name }}
 returnVar: List{{ name }}
 transactional: false

@@ -1,4 +1,9 @@
 pipe:
+  - type: mapping
+    isArray: false
+    from: body
+    builtIn: camelToSnake
+    to: body
   - type: query
     statement: >-
       INSERT INTO "{{ nameSnake }}" ( 
@@ -11,5 +16,10 @@ pipe:
       {{/each}}
     resultType: row
     assign: New{{ name }}
+  - type: mapping
+    from: New{{ name }}
+    isArray: false
+    builtIn: snakeToCamel
+    to: New{{ name }}
 returnVar: New{{ name }}
 transactional: true
