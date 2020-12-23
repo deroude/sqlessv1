@@ -74,6 +74,8 @@ export class PostgresService implements Persistence {
     }
 
     async executeQuery(query: string, args?: any[]): Promise<any> {
+        console.log(`Query: ${query}`);
+        if(args) console.log(`\t - args: ${args.join('|')}`);
         try {
             await this.connect();
             const q = await this.db.query(query, args || []);

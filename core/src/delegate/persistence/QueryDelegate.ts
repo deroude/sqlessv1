@@ -12,9 +12,17 @@ export class QueryDelegate implements Delegate {
         try {
             const args: any[] = (this.config.params || []).map(p => _.get(params, p));
 
-            const re = await persistence.executeQuery(this.config.statement, args);
+            const re: any = await persistence.executeQuery(this.config.statement, args);
             if (this.config.assign) {
-                params[this.config.assign] = re;
+                if (this.config.resultType === 'set') {
+                    params[this.config.assign] = re;
+                }
+                if (this.config.resultType === 'row') {
+                    params[this.config.assign] = re[0];
+                }
+                if (this.config.resultType === 'scalar') {
+                    params[this.config.assign] = Object.values(re[0])[0];
+                }
             }
         } catch (err) {
             return Promise.reject(err);

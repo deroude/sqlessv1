@@ -9,6 +9,8 @@ import { MethodDelegate } from '../delegate/MethodDelegate';
 import _ from 'lodash';
 import { WellKnown, JWK, discover, getJWKs } from '../service/oidc-discovery/OIDCDiscovery';
 import passport from 'passport';
+import multer from 'multer';
+import stream from 'stream';
 
 // tslint:disable-next-line:no-var-requires
 const jwksClient = require('jwks-rsa');
@@ -60,7 +62,10 @@ export class SQLess {
                 const oidcConfig: WellKnown = await discover(scheme.openIdConnectUrl);
                 const verify = (req: any, jwtPayload: any, done: any) => {
                     const scopesRequired: string[] = _.get(api.paths, `${req.path}.${req.method.toLowerCase()}.security[0].${schemeName}`) as string[];
-                    if (jwtPayload && jwtPayload.sub && (!scopesRequired || scopesRequired.length === 0 || scopesRequired.some(s => (jwtPayload[config.permissionClaim]||[]).includes(s)))) {
+                    console.log(`Validating request with permissions: ${jwtPayload[config.permissionClaim]} against requirements: ${scopesRequired}`);
+                    if (jwtPayload && jwtPayload.sub && (!scopesRequired || scopesRequired.length === 0 || scopesRequired.some(s => (jwtPayload[config.permissionClaim] || []).includes(s)))) {
+                        console.log(`Request validated with payload sub: ${jwtPayload.sub}`);
+                        req.principal = jwtPayload;
                         return done(null, jwtPayload);
                     }
 
@@ -87,20 +92,42 @@ export class SQLess {
         }
 
         this.app.use(async (err: any, req: any, res: any, next: any) => {
+            console.log(err);
             // format error
             res.status(err.status || 500).json({
                 message: err.message,
                 errors: err.errors,
             });
         });
+
+        const upload = multer({ storage: multer.memoryStorage() });
+
         for (const [apiPath, item] of Object.entries(api.paths)) {
             const formattedPath = apiPath.replace(/\{(.+)\}/g, ':$1');
             const opPath = `${basePath}${formattedPath}`;
             for (const method of ['get', 'post', 'put', 'delete', 'patch', 'options'].filter(m => _.has(item, m))) {
 
                 const apiConfig: OpenAPIV3.OperationObject = _.get(item, method);
-
-                this.expressRequest(method, opPath, apiConfig.security ? passport.authenticate('jwt', { session: false }) : null, async (aReq, aRes) => {
+                const middleware = [];
+                if (apiConfig.security) {
+                    middleware.push(passport.authenticate('jwt', { session: false }));
+                }
+                const multipart = (apiConfig.requestBody as OpenAPIV3.RequestBodyObject)?.content['multipart/form-data'];
+                if (multipart) {
+                    const uploadFields = [];
+                    for (const [propName, propSpec] of Object.entries((multipart.schema as OpenAPIV3.SchemaObject).properties)) {
+                        if ((propSpec as OpenAPIV3.SchemaObject).type === 'array'
+                            && ((propSpec as OpenAPIV3.ArraySchemaObject).items as OpenAPIV3.SchemaObject).format === 'binary') {
+                            uploadFields.push({ name: propName, maxCount: 10 });
+                        }
+                        if ((propSpec as OpenAPIV3.SchemaObject).type === 'string'
+                            && (propSpec as OpenAPIV3.SchemaObject).format === 'binary') {
+                            uploadFields.push({ name: propName, maxCount: 1 });
+                        }
+                    }
+                    middleware.push(upload.fields(uploadFields));
+                }
+                this.expressRequest(method, opPath, middleware, async (aReq, aRes) => {
                     if (methodExecutors[apiPath] && methodExecutors[apiPath][method]) {
                         const methodDelegate = methodExecutors[apiPath][method];
                         try {
@@ -116,7 +143,28 @@ export class SQLess {
                                 this.context.persistence.commitTransaction();
                             }
                             if (methodDelegate.returnVar) {
-                                aRes.status(200).send(params[methodDelegate.returnVar]);
+                                const responseSpec = (apiConfig.responses[200] as OpenAPIV3.ResponseObject)?.content;
+                                if (responseSpec) {
+                                    const [contentType, contentSchema] = Object.entries(responseSpec)[0];
+                                    if ((contentSchema.schema as OpenAPIV3.SchemaObject).type === 'string'
+                                        && (contentSchema.schema as OpenAPIV3.SchemaObject).format === 'binary') {
+                                        const dl: Buffer = params[methodDelegate.returnVar];
+                                        aRes.status(200);
+                                        aRes.set({
+                                            'Cache-Control': 'no-cache',
+                                            'Content-Type': contentType,
+                                            'Content-Length': dl.byteLength,
+                                            'Content-Disposition': 'attachment; filename=' + methodDelegate.returnVar
+                                        });
+                                        const bufferStream = new stream.PassThrough();
+                                        bufferStream.end(dl);
+                                        bufferStream.pipe(aRes);
+                                    } else {
+                                        aRes.status(200).send(params[methodDelegate.returnVar]);
+                                    }
+                                } else {
+                                    aRes.status(200).send(params[methodDelegate.returnVar]);
+                                }
                             } else {
                                 aRes.status(200).send();
                             }
@@ -125,7 +173,11 @@ export class SQLess {
                                 this.context.persistence.rollbackTransaction();
                             }
                             console.error(err);
-                            aRes.status(500).send(err);
+                            if (err.responseCode) {
+                                aRes.status(err.responseCode).send(err.responseMessage);
+                            } else {
+                                aRes.status(500).send(err);
+                            }
                         }
                     } else {
                         aRes.status(501).send('Method not yet implemented');

@@ -1,6 +1,7 @@
 import yargs from 'yargs';
 import { Generator } from './generate/Generator';
 import { Bootstrap } from './start/Bootstrap';
+import { Update } from './update/Update';
 
 const argv = yargs
     .command('start', 'Starts a SQLess environment', y =>
@@ -45,6 +46,17 @@ const argv = yargs
         args => new Generator({ apiPath: args.apiPath, dbType: args.dbType, privateKeyPassPhrase: args.privateKeyPassPhrase })
             .init()
             .catch(reason => { console.error(reason); process.exit(1); })
+    )
+    .command('update', 'Updates an existing SQLess environment', y =>
+        y.alias('a', 'apiPath')
+            .alias('c', 'configPath')
+            .nargs('c', 1)
+            .describe('c', 'Configuration file, defaults to ./sqless-config.yaml')
+            .default('c', '.sqless/sqless-config.yaml')
+            .example('$0 --config /path/to/my/config.yaml', 'Updates the SQLess metadata using the provided path'),
+        args => new Update({
+            configPath: args.configPath,
+        }).update().catch(reason => { console.error(reason); process.exit(1); })
     )
     .help('?')
     .alias('?', 'help')

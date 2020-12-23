@@ -1,9 +1,4 @@
 pipe:
-  - type: mapping
-    from: body
-    isArray: false
-    builtIn: camelToSnake
-    to: body
   - type: query
     statement: >-
       UPDATE "{{ nameSnake }}" SET 

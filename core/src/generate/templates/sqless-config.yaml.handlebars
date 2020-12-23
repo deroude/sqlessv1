@@ -1,16 +1,28 @@
-version: 0.0.1
+version: {{#if version}}{{version}}{{else}}0.0.1{{/if}}
 dbConnection:
+{{#if dbConnection}}
+{{#with dbConnection}}
+    type: {{type}}
+    database: {{database}}
+    host: {{host}}
+    port: {{port}}
+    user: {{user}}
+    password: {{password}}
+{{/with}}
+{{else}}
     type: postgres
     database: postgres
     host: localhost
     port: 5432
     user: postgres
     password: postgres
+{{/if}}
 migrations: 
   - id: 001_initial
     applyPath: migrations/001_initial.sql
     rollbackPath: migrations/001_initial_rollback.sql
-apiPath: ../{{ apiPath }}
+apiPath: {{ apiPath }}
+{{#if permissionClaim}}{{permissionClaim}}{{/if}}
 methodPaths:
 {{#each pathDelegates}}
   {{path}}:

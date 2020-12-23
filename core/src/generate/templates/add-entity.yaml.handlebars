@@ -1,9 +1,4 @@
 pipe:
-  - type: mapping
-    isArray: false
-    from: body
-    builtIn: camelToSnake
-    to: body
   - type: query
     statement: >-
       INSERT INTO "{{ nameSnake }}" ( 

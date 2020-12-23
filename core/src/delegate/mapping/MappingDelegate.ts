@@ -6,6 +6,7 @@ import { ObjectMappingConfig } from "./MappingConfig";
 
 export const builtIn: { [k: string]: (from: any, isArray: boolean) => any } = {
     'snakeToCamel': (from: any, isArray: boolean): any => {
+        if (!from) return null;
         if (isArray) {
             return from.map((f: any) => objectToCamel(f));
         } else {
@@ -13,6 +14,7 @@ export const builtIn: { [k: string]: (from: any, isArray: boolean) => any } = {
         }
     },
     'camelToSnake': (from: any, isArray: boolean): any => {
+        if (!from) return null;
         if (isArray) {
             return from.map((f: any) => objectToSnake(f));
         } else {
@@ -29,6 +31,7 @@ export class MappingDelegate implements Delegate {
 
     async process(context: any, params: any): Promise<void> {
         const from = params[this.config.from];
+        if (!from) return null;
         let to = null;
         if (this.config.builtIn && builtIn[this.config.builtIn]) {
             to = builtIn[this.config.builtIn](from, this.config.isArray);

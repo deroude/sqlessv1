@@ -26,18 +26,20 @@ interface Property {
     fk?: string;
 }
 
-interface Operation {
+export interface Operation {
     method: string;
     delegate: string;
+    template?: string;
+    payload?: any
 }
 
-interface Entity {
+export interface Entity {
     name: string;
     nameSnake: string;
     properties: Property[];
 }
 
-interface PathDelegate {
+export interface PathDelegate {
     path: string;
     operations: Operation[];
 }
@@ -56,7 +58,9 @@ const typeMap: { [k: string]: PGType } = {
     'boolean': 'boolean'
 }
 
-export function toSnake(a: string) { return a.split(/(?=[A-Z])/).join('_').toLowerCase(); }
+export function toSnake(a: string) { return a.substring(0, 1).toLowerCase() + a.substring(1).replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`); }
+
+export function toDash(a: string) { return a.substring(0, 1).toLowerCase() + a.substring(1).replace(/[A-Z]/g, letter => `-${letter.toLowerCase()}`); }
 
 export function toCamel(a: string) { return a.split('_').map((tk, ix) => ix > 0 ? tk[0].toUpperCase() + tk.slice(1) : tk).join(''); }
 
@@ -76,6 +80,219 @@ export function objectToSnake(a: any) {
     return camel;
 }
 
+export async function writeFile(fPath: string, f: HandlebarsTemplateDelegate, args: any): Promise<void> {
+    const dirname = path.dirname(fPath);
+    if (!fs.existsSync(dirname)) {
+        try {
+            await fs.promises.mkdir(dirname, { recursive: true });
+        } catch (err) {
+            console.error(err);
+            return Promise.reject(err);
+        }
+    }
+    try {
+        await fs.promises.writeFile(fPath, f(args), 'utf-8');
+    } catch (err) {
+        console.error(err);
+        return Promise.reject(err);
+    }
+    return Promise.resolve();
+}
+
+export async function loadApi(apiPath: string): Promise<OpenAPIV3.Document> {
+    if (fs.existsSync(apiPath)) {
+        try {
+            return yaml.safeLoad(fs.readFileSync(apiPath, 'utf-8')) as OpenAPIV3.Document;
+        } catch (err) {
+            console.error(`Unable to load API file [${apiPath}]`);
+            console.error(err);
+            return Promise.reject(err);
+        }
+    }
+}
+
+export function loadEntities(api: OpenAPIV3.Document): Entity[] {
+    const entities: Entity[] = [];
+    for (const [k, v] of Object.entries(api.components.schemas)) {
+        const entity: Entity = { name: k, nameSnake: toSnake(k), properties: [] };
+        const schema: OpenAPIV3.SchemaObject = v as OpenAPIV3.SchemaObject;
+        for (const [pk, pv] of Object.entries(schema.properties)) {
+            if (isReference(pv)) {
+                const ref = pv.$ref.match(refPattern);
+                if (ref && ref[1]) {
+                    entity.properties.push({
+                        name: pk,
+                        nameSnake: toSnake(pk),
+                        isId: false,
+                        isRequired: schema.required && schema.required.indexOf(pk.toLowerCase()) > 0,
+                        type: 'int',
+                        fk: toSnake(ref[1])
+                    });
+                }
+            } else {
+                entity.properties.push({
+                    name: pk,
+                    nameSnake: toSnake(pk),
+                    isId: pk.toLowerCase() === 'id',
+                    isRequired: schema.required && schema.required.indexOf(pk.toLowerCase()) > 0,
+                    type: typeMap[pv.format ? `${pv.type}:${pv.format}` : pv.type]
+                })
+            }
+        }
+
+        entities.push(entity);
+    }
+
+    // Order entities according to the references
+    let iter = 0;
+    let sw = true;
+    while (sw && iter++ < 10) {
+        sw = false;
+        for (let i = 0; i < entities.length; i++) {
+            const e = entities[i];
+            for (const prop of e.properties) {
+                if (prop.fk) {
+                    const si = entities.findIndex(o => o.nameSnake === prop.fk);
+                    if (si > i) {
+                        sw = true;
+                        const oe: Entity = entities[si];
+                        entities[si] = entities[i];
+                        entities[i] = oe;
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    if (iter === 10) {
+        console.warn('Circular FK detected');
+    }
+
+    return entities;
+}
+
+export function createPath(opItem: OpenAPIV3.OperationObject): string {
+    if (opItem.tags && opItem.tags[0] && opItem.operationId) {
+        return `queries/${opItem.tags[0]}/${toDash(opItem.operationId)}.yaml`;
+    }
+    return null;
+}
+
+export function loadDelegates(api: OpenAPIV3.Document, entities: Entity[]): PathDelegate[] {
+    const pathDelegates: PathDelegate[] = [];
+    for (const [p, ops] of Object.entries(api.paths)) {
+        const pathDelegate: PathDelegate = { path: p, operations: [] };
+        let entityMatch = p.match(batchPathPattern);
+        let entityName: string;
+        let isIdOp: boolean;
+        if (entityMatch && entityMatch[1]) {
+            entityName = entityMatch[1].toLowerCase();
+            isIdOp = false;
+        }
+        if (!entityMatch) {
+            entityMatch = p.match(idPathPattern);
+            if (entityMatch && entityMatch[1]) {
+                entityName = entityMatch[1].toLowerCase();
+                isIdOp = true;
+            }
+        }
+        let entity;
+        if (!!entityMatch) {
+            entity = entities.find(e => e.name.toLowerCase() === entityName);
+        }
+        if (entity) {
+            for (const [op, opItem] of Object.entries(ops)) {
+                let opDelegate: Operation;
+                switch (op.toLowerCase()) {
+                    case 'get':
+                        if (isIdOp) {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/get-single-${entityName}.yaml`,
+                                template: 'get-entity-single.yaml',
+                                payload: entity
+                            };
+                        } else {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/get-list-${entityName}.yaml`,
+                                template: 'get-entity-list.yaml',
+                                payload: entity
+                            };
+                        }
+                        break;
+                    case 'post':
+                        if (!isIdOp) {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/add-${entityName}.yaml`,
+                                template: 'add-entity.yaml',
+                                payload: entity
+                            }
+                        } else {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase(),
+                                template: 'generic-handler.yaml',
+                                payload: {}
+                            }
+                        }
+                        break;
+                    case 'delete':
+                        if (isIdOp) {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/delete-${entityName}.yaml`,
+                                template: 'delete-entity.yaml',
+                                payload: entity
+                            }
+                        } else {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase(),
+                                template: 'generic-handler.yaml',
+                                payload: {}
+                            }
+                        }
+                        break;
+                    case 'put':
+                    case 'patch':
+                        if (isIdOp) {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/update-${entityName}.yaml`,
+                                template: 'update-entity.yaml',
+                                payload: entity
+                            }
+                        } else {
+                            opDelegate = {
+                                method: op.toLowerCase(),
+                                delegate: createPath(opItem) || `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase(),
+                                template: 'generic-handler.yaml',
+                                payload: {}
+                            }
+                        }
+                        break;
+                }
+                pathDelegate.operations.push(opDelegate);
+            }
+        } else {
+            for (const [op, opItem] of Object.entries(ops).filter(([k, v]) => ['get', 'post', 'put', 'delete', 'patch'].includes(k))) {
+                pathDelegate.operations.push({
+                    method: op.toLowerCase(),
+                    delegate: createPath(opItem) || `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase(),
+                    template: 'generic-handler.yaml',
+                    payload: {}
+                });
+            }
+        }
+        pathDelegates.push(pathDelegate);
+    }
+    return pathDelegates;
+}
+
+
 function isReference(prop: OpenAPIV3.SchemaObject | OpenAPIV3.ReferenceObject): prop is OpenAPIV3.ReferenceObject {
     return (prop as OpenAPIV3.ReferenceObject).$ref !== undefined;
 }
@@ -92,163 +309,33 @@ export class Generator {
 
         if (this.config.apiPath) {
             console.log(`Loading API from ${this.config.apiPath}`);
-            if (fs.existsSync(this.config.apiPath)) {
-                try {
-                    api = yaml.safeLoad(fs.readFileSync(this.config.apiPath, 'utf-8')) as OpenAPIV3.Document;
-                    console.log('API file loaded');
-                } catch (err) {
-                    console.error(`Unable to load API file [${this.config.apiPath}]`);
-                    console.error(err);
-                    return Promise.reject(err);
-                }
-            }
+            api = await loadApi(this.config.apiPath);
         }
 
         if (!api) {
             console.error(`No API file available`);
             return Promise.reject('No API file available');
         }
+        console.log('API loaded');
 
-        const entities = [];
+        const entities = loadEntities(api);
 
-        for (const [k, v] of Object.entries(api.components.schemas)) {
-            const entity: Entity = { name: k, nameSnake: toSnake(k), properties: [] };
-            const schema: OpenAPIV3.SchemaObject = v as OpenAPIV3.SchemaObject;
-            for (const [pk, pv] of Object.entries(schema.properties)) {
-                if (isReference(pv)) {
-                    const ref = pv.$ref.match(refPattern);
-                    if (ref && ref[1]) {
-                        entity.properties.push({
-                            name: pk,
-                            nameSnake: toSnake(pk),
-                            isId: false,
-                            isRequired: schema.required && schema.required.indexOf(pk.toLowerCase()) > 0,
-                            type: 'int',
-                            fk: toSnake(ref[1])
-                        });
-                    }
-                } else {
-                    entity.properties.push({
-                        name: pk,
-                        nameSnake: toSnake(pk),
-                        isId: pk.toLowerCase() === 'id',
-                        isRequired: schema.required && schema.required.indexOf(pk.toLowerCase()) > 0,
-                        type: typeMap[pv.format ? `${pv.type}:${pv.format}` : pv.type]
-                    })
-                }
-            }
+        await writeFile('.sqless/docker-compose.yaml', Handlebars.templates['docker-compose.yaml'], {});
+        await writeFile('.sqless/postgres-init.sql', Handlebars.templates['postgres-init.sql'], {});
+        await writeFile('.sqless/migrations/001_initial.sql', Handlebars.templates['001_initial.sql'], { entities });
+        await writeFile('.sqless/migrations/001_initial_rollback.sql', Handlebars.templates['001_initial_rollback.sql'], { entities: entities.reverse() });
 
-            entities.push(entity);
-        }
+        const pathDelegates: PathDelegate[] = loadDelegates(api, entities);
 
-        // Order entities according to the references
-        let iter = 0;
-        let sw = true;
-        while (sw && iter++ < 10) {
-            sw = false;
-            for (let i = 0; i < entities.length; i++) {
-                const e = entities[i];
-                for (const prop of e.properties) {
-                    if (prop.fk) {
-                        const si = entities.findIndex(o => o.nameSnake === prop.fk);
-                        if (si > i) {
-                            sw = true;
-                            const oe: Entity = entities[si];
-                            entities[si] = entities[i];
-                            entities[i] = oe;
-                            break;
-                        }
-                    }
-                }
+        for (const delegate of pathDelegates) {
+            console.log("Writing delegates for " + delegate.path);
+            for (const op of delegate.operations) {
+                console.log("\t - " + op.method + ": " + op.delegate);
+                await writeFile(`.sqless/${op.delegate}`, Handlebars.templates[op.template], op.payload);
             }
         }
 
-        if (iter === 10) {
-            console.warn('Circular FK detected');
-        }
-
-        await this.writeFile('.sqless/docker-compose.yaml', Handlebars.templates['docker-compose.yaml'], {});
-        await this.writeFile('.sqless/postgres-init.sql', Handlebars.templates['postgres-init.sql'], {});
-        await this.writeFile('.sqless/migrations/001_initial.sql', Handlebars.templates['001_initial.sql'], { entities });
-        await this.writeFile('.sqless/migrations/001_initial_rollback.sql', Handlebars.templates['001_initial_rollback.sql'], { entities: entities.reverse() });
-
-        const pathDelegates: PathDelegate[] = [];
-
-        for (const [p, ops] of Object.entries(api.paths)) {
-            const pathDelegate: PathDelegate = { path: p, operations: [] };
-            let entityMatch = p.match(batchPathPattern);
-            let entityName: string;
-            let isIdOp: boolean;
-            if (entityMatch && entityMatch[1]) {
-                entityName = entityMatch[1].toLowerCase();
-                isIdOp = false;
-            }
-            if (!entityMatch) {
-                entityMatch = p.match(idPathPattern);
-                if (entityMatch && entityMatch[1]) {
-                    entityName = entityMatch[1].toLowerCase();
-                    isIdOp = true;
-                }
-            }
-            let entity;
-            if (!!entityMatch) {
-                entity = entities.find(e => e.name.toLowerCase() === entityName);
-            }
-            if (entity) {
-                for (const op of Object.keys(ops)) {
-                    let delegate;
-                    switch (op.toLowerCase()) {
-                        case 'get':
-                            if (isIdOp) {
-                                delegate = `queries/get-single-${entityName}.yaml`;
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['get-entity-single.yaml'], entity);
-                            } else {
-                                delegate = `queries/get-list-${entityName}.yaml`;
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['get-entity-list.yaml'], entity);
-                            }
-                            break;
-                        case 'post':
-                            if (!isIdOp) {
-                                delegate = `queries/add-${entityName}.yaml`;
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['add-entity.yaml'], entity);
-                            } else {
-                                delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
-                            }
-                            break;
-                        case 'delete':
-                            if (isIdOp) {
-                                delegate = `queries/delete-${entityName}.yaml`;
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['delete-entity.yaml'], entity);
-                            } else {
-                                delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
-                            }
-                            break;
-                        case 'put':
-                        case 'patch':
-                            if (isIdOp) {
-                                delegate = `queries/update-${entityName}.yaml`;
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['update-entity.yaml'], entity);
-                            } else {
-                                delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
-                                await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
-                            }
-                            break;
-                    }
-                    pathDelegate.operations.push({ method: op.toLowerCase(), delegate });
-                }
-            } else {
-                for (const op of Object.keys(ops)) {
-                    const delegate = `queries/generic${p.replace(/[\/;:\{\}]/g, '-')}-${op.toLowerCase()}.yaml`.toLowerCase();
-                    await this.writeFile(`.sqless/${delegate}`, Handlebars.templates['generic-handler.yaml'], {});
-                    pathDelegate.operations.push({ method: op.toLowerCase(), delegate });
-                }
-            }
-            pathDelegates.push(pathDelegate);
-        }
-
-        await this.writeFile('.sqless/sqless-config.yaml', Handlebars.templates['sqless-config.yaml'], { apiPath: this.config.apiPath.replace(/^\.[\/\\]/, ''), pathDelegates });
+        await writeFile('.sqless/sqless-config.yaml', Handlebars.templates['sqless-config.yaml'], { apiPath: `../${this.config.apiPath.replace(/^\.[\/\\]/, '')}`, pathDelegates });
 
         // Security
 
@@ -266,7 +353,7 @@ export class Generator {
                 }
             });
             const server = api.servers && api.servers[0] ? api.servers[0].url : '';
-            await this.writeFile('.sqless/realm-config.json', Handlebars.templates['realm-config.json'], {
+            await writeFile('.sqless/realm-config.json', Handlebars.templates['realm-config.json'], {
                 realmName,
                 // publicKey,
                 // privateKey,
@@ -279,24 +366,4 @@ export class Generator {
 
         return Promise.resolve();
     }
-
-    private async writeFile(fPath: string, f: HandlebarsTemplateDelegate, args: any): Promise<void> {
-        const dirname = path.dirname(fPath);
-        if (!fs.existsSync(dirname)) {
-            try {
-                await fs.promises.mkdir(dirname, { recursive: true });
-            } catch (err) {
-                console.error(err);
-                return Promise.reject(err);
-            }
-        }
-        try {
-            await fs.promises.writeFile(fPath, f(args), 'utf-8');
-        } catch (err) {
-            console.error(err);
-            return Promise.reject(err);
-        }
-        return Promise.resolve();
-    }
-
 }
