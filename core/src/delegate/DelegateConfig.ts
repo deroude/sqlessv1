@@ -14,6 +14,8 @@ import { HandlebarsDelegate } from "./handlebars/HandlebarsDelegate";
 import { HandlebarsConfig } from "./handlebars/HandlebarsConfig";
 import { AssertConfig } from "./assert/AssertConfig";
 import { AssertDelegate } from "./assert/AssertDelegate";
+import { StubConfig } from "./stub/StubConfig";
+import { StubDelegate } from "./stub/StubDelegate";
 
 export interface DelegateConfig {
     type: string;
@@ -35,6 +37,8 @@ export const loadDelegate = (config: DelegateConfig): Delegate => {
             return new HandlebarsDelegate(config as HandlebarsConfig);
         case 'assert':
             return new AssertDelegate(config as AssertConfig);
+        case 'stub':
+            return new StubDelegate(config as StubConfig);
         default:
             return new NotImplementedDelegate();
     }
