@@ -1,6 +1,6 @@
 {
   "name": "@sqless/core",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "SQLess development platform",
   "main": "dist/index.js",
   "scripts": {
@@ -8,7 +8,7 @@
     "lint": "tslint -c tslint.json -p tsconfig.json --fix",
     "tsc": "tsc",
     "build": "handlebars src/generate/templates -f src/generate/templates/precompiled.js && npm run lint && npm run tsc",
-    "postbuild": "cpy **/* !**/*.ts !**/*.handlebars ../dist/ --cwd=src/ --no-overwrite --parents",
+    "postbuild": "copyfiles -u 1 \"src/**/*\" -e \"**/*.ts\" -e \"**/*.handlebars\" dist",
     "build:watch": "tsc -w",
     "dev:start": "nodemon --watch dist --exec node .",
     "dev": "concurrently \"npm run build:watch\" \"npm run dev:start\"",
@@ -76,7 +76,7 @@
     "@types/yargs": "11.0.0",
     "babel-jest": "^26.6.3",
     "concurrently": "^5.2.0",
-    "cpy-cli": "^3.1.1",
+    "copyfiles": "^2.4.1",
     "jest": "^26.4.2",
     "nodemon": "^2.0.4",
     "rimraf": "^3.0.2",
