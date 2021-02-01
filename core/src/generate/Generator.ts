@@ -174,7 +174,7 @@ export function loadEntities(api: OpenAPIV3.Document): Entity[] {
 
 export function createPath(opItem: OpenAPIV3.OperationObject): string {
     if (opItem.tags && opItem.tags[0] && opItem.operationId) {
-        return `queries/${opItem.tags[0]}/${toDash(opItem.operationId)}.yaml`;
+        return `queries/${opItem.tags.join('/')}/${toDash(opItem.operationId)}.yaml`;
     }
     return null;
 }
