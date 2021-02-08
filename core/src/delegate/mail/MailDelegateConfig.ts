@@ -1,6 +1,7 @@
 import { DelegateConfig } from "../DelegateConfig";
 
 export interface MailDelegateConfig extends DelegateConfig {
-    params: string[];
+    mailGunApiKey: string;
+    mailGunDomain: string;
     template: string;
 }

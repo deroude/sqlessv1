@@ -1,6 +1,6 @@
 {
   "name": "@sqless/core",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "SQLess development platform",
   "main": "dist/index.js",
   "scripts": {
@@ -52,7 +52,8 @@
     "pdf-lib": "^1.12.0",
     "pg": "^8.3.0",
     "swagger-ui-express": "^4.1.4",
-    "yargs": "^15.4.1"
+    "yargs": "^15.4.1",
+    "mailgun-js": "0.22.0"
   },
   "devDependencies": {
     "@babel/core": "^7.12.10",
@@ -74,6 +75,7 @@
     "@types/pg": "^7.14.4",
     "@types/swagger-ui-express": "^4.1.2",
     "@types/yargs": "11.0.0",
+    "@types/mailgun-js": "0.22.11",
     "babel-jest": "^26.6.3",
     "concurrently": "^5.2.0",
     "copyfiles": "^2.4.1",
