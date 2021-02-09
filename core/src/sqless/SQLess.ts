@@ -103,7 +103,7 @@ export class SQLess {
         const upload = multer({ storage: multer.memoryStorage() });
 
         for (const [apiPath, item] of Object.entries(api.paths)) {
-            const formattedPath = apiPath.replace(/\{(.+)\}/g, ':$1');
+            const formattedPath = apiPath.replace(/\{(.+?)\}/g, ':$1');
             const opPath = `${basePath}${formattedPath}`;
             for (const method of ['get', 'post', 'put', 'delete', 'patch', 'options'].filter(m => _.has(item, m))) {
 
