@@ -1,18 +1,27 @@
 import { Delegate } from "../Delegate";
 import { MailDelegateConfig } from "./MailDelegateConfig";
-import mailgun, { Mailgun, messages } from 'mailgun-js';
+import { Mailgun, messages } from 'mailgun-js';
+import _ from 'lodash';
 
 export class MailDelegate implements Delegate {
 
-    mg: Mailgun;
-
-    constructor(private config: MailDelegateConfig) {
-        this.mg = mailgun({ apiKey: this.config.mailGunApiKey, domain: this.config.mailGunDomain })
-    }
+    constructor(private config: MailDelegateConfig) { }
 
     async process(context: any, params: any): Promise<void> {
         try {
-            this.mg.messages().send({ 'recipient-variables': params as messages.BatchSendRecipientVars } as messages.BatchData);
+            const recipients = _.get(params, this.config.recipientsVar) as any[];
+            const recipientVars: messages.BatchSendRecipientVars = recipients.reduce(
+                (acc, curr) => {
+                    acc[curr.email] = curr;
+                    return acc;
+                }, {}
+            );
+            (context.mail as Mailgun).messages().send({
+                from: 'order@mark-masons.ro',
+                template: _.get(params, this.config.templateVar),
+                to: recipients.map(r => r.email),
+                'recipient-variables': recipientVars
+            } as messages.BatchData);
             return Promise.resolve();
         } catch (err) {
             return Promise.reject(err);

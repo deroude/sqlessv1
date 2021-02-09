@@ -10,6 +10,7 @@ import { loadDelegate } from '../delegate/DelegateConfig';
 import { MethodDelegateConfig } from '../delegate/MethodDelegateConfig';
 import { NotImplementedDelegate } from '../delegate/not-implemented/NotImplementedDelegate';
 import { MethodDelegate } from '../delegate/MethodDelegate';
+import mailgun from 'mailgun-js';
 
 
 export async function loadConfig(yamlPath: string): Promise<SQLessConfig> {
@@ -129,6 +130,10 @@ export class Bootstrap {
                     }
                 }
                 console.log('Done');
+            }
+
+            if(config.mail && config.mail.mailGun){
+                context.mail = mailgun(config.mail.mailGun)
             }
 
             const server = new SQLess(context);

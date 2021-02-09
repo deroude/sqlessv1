@@ -1,7 +1,7 @@
 import { DelegateConfig } from "../../delegate/DelegateConfig";
 
 export interface MailConfig {
-    smtp: {
+    smtp?: {
         uri?: string;
         host?: string;
         username?: string;
@@ -10,4 +10,8 @@ export interface MailConfig {
         secure?: boolean;
     }
     defaultSender?: string;
+    mailGun? : {
+        apiKey: string;
+        domain: string;
+    }
 }
