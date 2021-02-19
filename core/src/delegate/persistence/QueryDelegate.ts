@@ -10,18 +10,25 @@ export class QueryDelegate implements Delegate {
     async process(context: any, params: any): Promise<void> {
         const persistence: Persistence = context.persistence;
         try {
-            const args: any[] = (this.config.params || []).map(p => _.get(params, p));
-
-            const re: any = await persistence.executeQuery(this.config.statement, args);
-            if (this.config.assign) {
-                if (this.config.resultType === 'set') {
-                    params[this.config.assign] = re;
+            if(this.config.forEachInArray){
+                const argList: any[] = _.get(params, this.config.forEachInArray);
+                for (const argSet of argList){
+                    const args: any[] = (this.config.params || []).map(p => _.get(argSet, p));
+                    await persistence.executeQuery(this.config.statement,args);
                 }
-                if (this.config.resultType === 'row') {
-                    params[this.config.assign] = re[0];
-                }
-                if (this.config.resultType === 'scalar') {
-                    params[this.config.assign] = Object.values(re[0])[0];
+            } else {
+                const args: any[] = (this.config.params || []).map(p => _.get(params, p));
+                const re: any = await persistence.executeQuery(this.config.statement, args);
+                if (this.config.assign) {
+                    if (this.config.resultType === 'set') {
+                        params[this.config.assign] = re;
+                    }
+                    if (this.config.resultType === 'row') {
+                        params[this.config.assign] = re[0];
+                    }
+                    if (this.config.resultType === 'scalar') {
+                        params[this.config.assign] = Object.values(re[0])[0];
+                    }
                 }
             }
         } catch (err) {
